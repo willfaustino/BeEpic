@@ -5,17 +5,19 @@ using UnityEngine.UI;
 
 public class ConfigManager : MonoBehaviour {
 
+    [Header ("Tela Config")]
     public CanvasGroup canvasConfig;
-    public CanvasGroup canvasTutorial;
     public Button btnVoltarConfig;
     public Button btnPoliticaPrivacidade;
     public Button btnTutorial;
-    public Button btnVoltarTutorial;
     public Button btnApoiadores;
-
     public Button btnInstagram;
 
-    [Header ("Apoiadores")]
+    [Header ("Tela Tutorial")]
+    public CanvasGroup canvasTutorial;
+    public Button btnVoltarTutorial;
+
+    [Header ("Tela Apoiadores")]
     public CanvasGroup canvasApoiadores;
     public CanvasGroup canvasEsqueleto;
     public CanvasGroup canvasEnt;
@@ -48,7 +50,7 @@ public class ConfigManager : MonoBehaviour {
         btnVoltarDragao.onClick.AddListener(() => EsconderTela(canvasDragao));
         btnTarrasque.onClick.AddListener(() => MostrarTela(canvasTarrasque));
         btnVoltarTarrasque.onClick.AddListener(() => EsconderTela(canvasTarrasque));
-
+        
     }
 
     public void VoltarConfig() {

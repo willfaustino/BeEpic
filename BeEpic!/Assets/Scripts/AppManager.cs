@@ -7,7 +7,35 @@ using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
+// Classe singleton que controla todas as funcionalidades do app e interações entre os outros Managers
 public class AppManager : MonoBehaviour {
+
+    #region "Instance"
+
+    protected static AppManager _instance;
+
+    public static AppManager Instance {
+        get { return _instance; }
+        set {
+            if (_instance == null) {
+                _instance = value;
+                DontDestroyOnLoad(_instance.gameObject);           
+            }
+        }
+    }
+
+    protected virtual void Awake() {
+        transform.SetParent(null);
+        if (_instance != null) {
+            Destroy(gameObject);
+            return;
+        }
+            
+        Instance = this;
+        
+    }
+
+    #endregion
 
     public GameObject controleVolume; // Prefab do controle de volume
     
@@ -77,8 +105,8 @@ public class AppManager : MonoBehaviour {
     string[] musicas;
     string[] ambiente;
     string[] combate;
-    string[] criaturas;
-    string[] magia;
+    string[] monstros;
+    string[] magias;
     string[] moderna;
     string[] natureza;
     string[] objetos;
@@ -92,8 +120,8 @@ public class AppManager : MonoBehaviour {
         musicas = BetterStreamingAssets.GetFiles("Musicas", "*.ogg");
         ambiente = BetterStreamingAssets.GetFiles("Ambiente", "*.ogg");
         combate = BetterStreamingAssets.GetFiles("Combate", "*.ogg");
-        criaturas = BetterStreamingAssets.GetFiles("Criaturas", "*.ogg");
-        magia = BetterStreamingAssets.GetFiles("Magia", "*.ogg");
+        monstros = BetterStreamingAssets.GetFiles("Criaturas", "*.ogg");
+        magias = BetterStreamingAssets.GetFiles("Magia", "*.ogg");
         moderna = BetterStreamingAssets.GetFiles("Moderna", "*.ogg");
         natureza = BetterStreamingAssets.GetFiles("Natureza", "*.ogg");
         objetos = BetterStreamingAssets.GetFiles("Objetos", "*.ogg");
@@ -102,22 +130,22 @@ public class AppManager : MonoBehaviour {
         Array.Sort(musicas);
         Array.Sort(ambiente);
         Array.Sort(combate);
-        Array.Sort(criaturas);
-        Array.Sort(magia);
+        Array.Sort(monstros);
+        Array.Sort(magias);
         Array.Sort(moderna);
         Array.Sort(natureza);
         Array.Sort(objetos);
         Array.Sort(personagens);
 
-        btnCategoriaMusicas.onClick.AddListener(PopularGridBotoesMusica);
-        btnCategoriaAmbiente.onClick.AddListener(PopularGridBotoesAmbiente);
-        btnCategoriaCombate.onClick.AddListener(PopularGridBotoesCombate);
-        btnCategoriaCriaturas.onClick.AddListener(PopularGridBotoesMonstros);
-        btnCategoriaMagia.onClick.AddListener(PopularGridBotoesMagias);
-        btnCategoriaModerna.onClick.AddListener(PopularGridBotoesModerna);
-        btnCategoriaNatureza.onClick.AddListener(PopularGridBotoesNatureza);
-        btnCategoriaObjetos.onClick.AddListener(PopularGridBotoesObjetos);
-        btnCategoriaPersonagens.onClick.AddListener(PopularGridBotoesPersonagens);
+        btnCategoriaMusicas.onClick.AddListener(() => PopularBotoesCategoria(musicas, "Músicas", true));
+        btnCategoriaAmbiente.onClick.AddListener(() => PopularBotoesCategoria(ambiente, "Ambiente", true));
+        btnCategoriaCombate.onClick.AddListener(() => PopularBotoesCategoria(combate, "Combate", false));
+        btnCategoriaCriaturas.onClick.AddListener(() => PopularBotoesCategoria(monstros, "Monstros", false));
+        btnCategoriaMagia.onClick.AddListener(() => PopularBotoesCategoria(magias, "Magias", false));
+        btnCategoriaModerna.onClick.AddListener(() => PopularBotoesCategoria(moderna, "Moderna", true));
+        btnCategoriaNatureza.onClick.AddListener(() => PopularBotoesCategoria(natureza, "Natureza", true));
+        btnCategoriaObjetos.onClick.AddListener(() => PopularBotoesCategoria(objetos, "Objetos", false));
+        btnCategoriaPersonagens.onClick.AddListener(() => PopularBotoesCategoria(personagens, "Personagens", false));
         btnFavoritos.onClick.AddListener(PopularGridBotoesFavoritos);
         btnFavoritosSalvar.onClick.AddListener(ValidaFavoritos);
         btnFavoritosDeletar.onClick.AddListener(ValidaDeletar);
@@ -139,12 +167,12 @@ public class AppManager : MonoBehaviour {
         Debug.Log("width: " + width);
         contentSons.GetComponent<GridLayoutGroup>().cellSize = newSize;
 
-        PopularGridBotoesMusica();
+        PopularBotoesCategoria(musicas, "Músicas", true);
     }
 
     #region Músicas
 
-    public void AdicionarMusicaAmbiente(string nmMusica, string caminhoMusica)
+    public void SelecionarMusica(string nmMusica, string caminhoMusica, Boolean isLooping)
     {
         GameObject sldMusica; // Create GameObject instance
         
@@ -162,206 +190,11 @@ public class AppManager : MonoBehaviour {
         sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
         sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
         
-        // Seto o loop para true
-        Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>());
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
+        if(isLooping){
+            // Seto o loop para true
+            Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>());
+        }
 
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaCombate(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaCriaturas(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaMagia(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaModerna(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        // Seto o loop para true
-        Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>());
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaMusicas(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        // Seto o loop para true
-        Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>());
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaNatureza(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        // Seto o loop para true
-        Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>());
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaObjetos(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
-
-        // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-    }
-
-    public void AdicionarMusicaPersonagens(string nmMusica, string caminhoMusica)
-    {
-        GameObject sldMusica; // Create GameObject instance
-        
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
-        
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-        
         sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
 
         // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
@@ -433,7 +266,7 @@ public class AppManager : MonoBehaviour {
 
     #region "Categorias"
 
-    public void PopularGridBotoesMusica()
+    public void PopularBotoesCategoria(string[] listaSons, string nomeCategoria, Boolean loop)
     {
         // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
         GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
@@ -443,7 +276,7 @@ public class AppManager : MonoBehaviour {
         
         GameObject btnMusica; // Create GameObject instance
 
-        foreach (string caminhoMusica in musicas)
+        foreach (string caminhoMusica in listaSons)
         {
             btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
             btnMusica.transform.SetParent(contentSons.transform);
@@ -453,250 +286,11 @@ public class AppManager : MonoBehaviour {
             string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
 
             btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaMusicas(nomeMusica, caminhoMusica));
+            btnMusica.GetComponent<Button>().onClick.AddListener(() => SelecionarMusica(nomeMusica, caminhoMusica, loop));
         }
 
-        nmCategoria.text = "Músicas";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesAmbiente()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in ambiente)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(9); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaAmbiente(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Ambiente";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesCombate()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in combate)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(8); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaCombate(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Combate";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesMonstros()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in criaturas)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(10); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaCriaturas(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Monstros";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesMagias()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in magia)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(6); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaMagia(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Magias";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesModerna()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in moderna)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(8); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaModerna(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Moderna";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesNatureza()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in natureza)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(9); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaNatureza(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Natureza";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesObjetos()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in objetos)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(8); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaObjetos(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Objetos";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void PopularGridBotoesPersonagens()
-    {
-        // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
-        GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
-        foreach (GameObject btnSom in botoes) {
-            GameObject.Destroy(btnSom);
-        }
-        
-        GameObject btnMusica; // Create GameObject instance
-        
-        foreach (string caminhoMusica in personagens)
-        {
-            btnMusica = Instantiate(btnSomPrefab, transform) as GameObject;
-            btnMusica.transform.SetParent(contentSons.transform);
-            btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-
-            string nomeMusicaComExtensao = caminhoMusica.Substring(12); 
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = nomeMusica;
-            btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaPersonagens(nomeMusica, caminhoMusica));
-        }
-
-        nmCategoria.text = "Personagens";
-        canvasFavoritos.alpha = 0f;
-        canvasFavoritos.interactable = false;
-        canvasFavoritos.blocksRaycasts = false;
-    }
-
-    public void LoadPopUpInfo()
-    {
-        MostrarTela(popUpConfig);
+        nmCategoria.text = nomeCategoria;
+        HabilitarFavoritos(false);
     }
 
     #endregion
@@ -733,9 +327,7 @@ public class AppManager : MonoBehaviour {
             //MostrarErro(popupErro, "Lista de favoritos não encontrada!");
         }
 
-        canvasFavoritos.alpha = 1f;
-        canvasFavoritos.interactable = true;
-        canvasFavoritos.blocksRaycasts = true;
+        HabilitarFavoritos(true);
     }
 
     public void AdicionarMusicaFavoritos(List<string> caminhoMusica, string nomeFavorito, int idFavorito)
@@ -902,6 +494,18 @@ public class AppManager : MonoBehaviour {
         return caminhos;
     }
 
+    void HabilitarFavoritos(Boolean habilitar){
+        if(habilitar){
+            canvasFavoritos.alpha = 1f;
+            canvasFavoritos.interactable = true;
+            canvasFavoritos.blocksRaycasts = true;
+        } else{
+            canvasFavoritos.alpha = 0f;
+            canvasFavoritos.interactable = false;
+            canvasFavoritos.blocksRaycasts = false;
+        }
+    }
+
     #endregion
 
     #region "Mostrar/Esconder Tela"
@@ -975,6 +579,11 @@ public class AppManager : MonoBehaviour {
     }
 
     #endregion
+
+    public void LoadPopUpInfo()
+    {
+        MostrarTela(popUpConfig);
+    }
 }
 
 public class BotoesPlay {
