@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 public class ConfigManager : MonoBehaviour {
@@ -40,21 +38,21 @@ public class ConfigManager : MonoBehaviour {
         btnInstagram.onClick.AddListener(AbrirInstagram);
         btnTutorial.onClick.AddListener(AbrirTutorial);
         btnVoltarTutorial.onClick.AddListener(VoltarTutorial);
-        btnApoiadores.onClick.AddListener(() => MostrarTela(canvasApoiadores));
-        btnVoltarApoiadores.onClick.AddListener(() => EsconderTela(canvasApoiadores));
-        btnEsqueleto.onClick.AddListener(() => MostrarTela(canvasEsqueleto));
-        btnVoltarEsqueleto.onClick.AddListener(() => EsconderTela(canvasEsqueleto));
-        btnEnt.onClick.AddListener(() => MostrarTela(canvasEnt));
-        btnVoltarEnt.onClick.AddListener(() => EsconderTela(canvasEnt));
-        btnDragao.onClick.AddListener(() => MostrarTela(canvasDragao));
-        btnVoltarDragao.onClick.AddListener(() => EsconderTela(canvasDragao));
-        btnTarrasque.onClick.AddListener(() => MostrarTela(canvasTarrasque));
-        btnVoltarTarrasque.onClick.AddListener(() => EsconderTela(canvasTarrasque));
+        btnApoiadores.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasApoiadores, true));
+        btnVoltarApoiadores.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasApoiadores, false));
+        btnEsqueleto.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasEsqueleto, true));
+        btnVoltarEsqueleto.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasEsqueleto, false));
+        btnEnt.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasEnt, true));
+        btnVoltarEnt.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasEnt, false));
+        btnDragao.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasDragao, true));
+        btnVoltarDragao.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasDragao, false));
+        btnTarrasque.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasTarrasque, true));
+        btnVoltarTarrasque.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasTarrasque, false));
         
     }
 
     public void VoltarConfig() {
-        EsconderTela(canvasConfig);
+        AppManager.Instance.HabilitarTela(canvasConfig, false);
     }
 
     public void AbrirPolitica() {
@@ -66,32 +64,11 @@ public class ConfigManager : MonoBehaviour {
     }
 
     public void AbrirTutorial() {
-        MostrarTela(canvasTutorial);
+        AppManager.Instance.HabilitarTela(canvasTutorial, true);
     }
 
     public void VoltarTutorial() {
-        EsconderTela(canvasTutorial);
+        AppManager.Instance.HabilitarTela(canvasTutorial, true);
     }
 
-    void MostrarTela(CanvasGroup canvas){
-
-        // Desativo o raycast para previnir que o usuário clique na tela anterior enquanto a animação de mostrar a tela ainda está sendo executada
-        canvas.blocksRaycasts = true;
-        LeanTween.alphaCanvas(canvas, 1, 0.3f).setOnComplete(() =>
-        {
-            // Ativo a interação com a tela depois que a animação terminar
-            canvas.interactable = true;        
-        });
-    }
-
-    void EsconderTela(CanvasGroup canvas){
-        
-        // Desativo a interação com a tela para previnir que o usuário clique nela enquanto a animação de esconder a tela ainda está sendo executada
-        canvas.interactable = false;
-        LeanTween.alphaCanvas(canvas, 0, 0.3f).setOnComplete(() =>
-        {
-            // Desativo o raycast da tela depois que a animação terminar. Permitindo que os usuários interajam com a tela anterior
-            canvas.blocksRaycasts = false;
-        });
-    }
 }

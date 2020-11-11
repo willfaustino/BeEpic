@@ -2,17 +2,15 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using UnityEngine.SceneManagement;
 using System;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 
 // Classe singleton que controla todas as funcionalidades do app e interações entre os outros Managers
 public class AppManager : MonoBehaviour {
 
     #region "Instance"
 
-    protected static AppManager _instance;
+    private static AppManager _instance;
 
     public static AppManager Instance {
         get { return _instance; }
@@ -37,13 +35,12 @@ public class AppManager : MonoBehaviour {
 
     #endregion
 
-    public GameObject controleVolume; // Prefab do controle de volume
-    
-    [Header("Imagens")]
-    public Sprite imagePlay;
-    public Sprite imagePause;
-    public Sprite imageLoop;
-    public Sprite imageLoopPressionado;
+    // Managers
+    public FavoritosManager favoritosManager;
+    public MusicasManager musicasManager;
+
+    [Header("Prefab Sound Player")]
+    public GameObject prefabSoundPlayer; // Prefab do controle de volume
 
     [Header("Botões Sons")]
     public GameObject btnSomPrefab;
@@ -65,22 +62,8 @@ public class AppManager : MonoBehaviour {
     [Header("Scrolls")]
     public GameObject contentSons;
     public GameObject contentVolumes;
-
-    [Header("Favoritos")]
-    public CanvasGroup canvasFavoritos;
     public GameObject contentFavoritos;
-    public Button btnFavoritosSalvar;
-    public Button btnFavoritosDeletar;
-    public CanvasGroup popupFavoritos;
-    public TMP_InputField txtNmFavorito;
-    public Button btnPopupFavoritosConfirmar;
-    public Button btnPopupFavoritosCancelar;
-    public CanvasGroup popupFavoritosDeletar;
-    public TextMeshProUGUI txtMensagemDeletar;
-    public Button btnPopupFavoritosDeletarConfirmar;
-    public Button btnPopupFavoritosDeletarCancelar;
-    int idFavoritoSelecionado;
-    string nomeFavoritoSelecionado;
+    public CanvasGroup canvasFavoritos;
 
     [Header("PopUp Erro")]
     public CanvasGroup popUpErro;
@@ -98,9 +81,6 @@ public class AppManager : MonoBehaviour {
     [Header("PopUp Config")]
     public CanvasGroup popUpConfig;
 
-    // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-    List<BotoesPlay> botoesPlay = new List<BotoesPlay>();
-
     // Lista de Sons
     string[] musicas;
     string[] ambiente;
@@ -115,7 +95,6 @@ public class AppManager : MonoBehaviour {
 
     void Start()
     {
-
         BetterStreamingAssets.Initialize();
         musicas = BetterStreamingAssets.GetFiles("Musicas", "*.ogg");
         ambiente = BetterStreamingAssets.GetFiles("Ambiente", "*.ogg");
@@ -146,16 +125,11 @@ public class AppManager : MonoBehaviour {
         btnCategoriaNatureza.onClick.AddListener(() => PopularBotoesCategoria(natureza, "Natureza", true));
         btnCategoriaObjetos.onClick.AddListener(() => PopularBotoesCategoria(objetos, "Objetos", false));
         btnCategoriaPersonagens.onClick.AddListener(() => PopularBotoesCategoria(personagens, "Personagens", false));
-        btnFavoritos.onClick.AddListener(PopularGridBotoesFavoritos);
-        btnFavoritosSalvar.onClick.AddListener(ValidaFavoritos);
-        btnFavoritosDeletar.onClick.AddListener(ValidaDeletar);
-        btnInfo.onClick.AddListener(LoadPopUpInfo);
-        btnPopupFavoritosConfirmar.onClick.AddListener(SalvarFavoritos);
-        btnPopupFavoritosCancelar.onClick.AddListener(() => EsconderTela(popupFavoritos));
-        btnPopupFavoritosDeletarConfirmar.onClick.AddListener(DeletarFavoritos);
-        btnPopupFavoritosDeletarCancelar.onClick.AddListener(() => EsconderTela(popupFavoritosDeletar));
-        btnOkErro.onClick.AddListener(() => EsconderErro(popUpErro));
-        btnSairApoiar.onClick.AddListener(() => EsconderTela(popUpApoiar));
+        btnFavoritos.onClick.AddListener(PopularBotoesCategoriaFavoritos);
+        btnInfo.onClick.AddListener(() => HabilitarTela(popUpConfig, true));
+
+        btnOkErro.onClick.AddListener(() => HabilitarErro(popUpErro, null, false));
+        btnSairApoiar.onClick.AddListener(() => HabilitarTela(popUpApoiar, false));
         btnApoiar.onClick.AddListener(AbrirApoiaSe);
         btnInstagram.onClick.AddListener(AbrirInstagram);
         btnYoutube.onClick.AddListener(AbrirYoutube);
@@ -163,8 +137,6 @@ public class AppManager : MonoBehaviour {
 
         float width = contentSons.GetComponent<RectTransform>().rect.width;
         Vector2 newSize = new Vector2(width / 2, 80);
-        Debug.Log("newsize: " + newSize);
-        Debug.Log("width: " + width);
         contentSons.GetComponent<GridLayoutGroup>().cellSize = newSize;
 
         PopularBotoesCategoria(musicas, "Músicas", true);
@@ -174,92 +146,66 @@ public class AppManager : MonoBehaviour {
 
     public void SelecionarMusica(string nmMusica, string caminhoMusica, Boolean isLooping)
     {
-        GameObject sldMusica; // Create GameObject instance
+        GameObject soundPlayer; // Create GameObject instance
         
-        sldMusica = Instantiate(controleVolume, transform) as GameObject;
-        sldMusica.transform.SetParent(contentVolumes.transform);
-        sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-        sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-        sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
+        soundPlayer = Instantiate(prefabSoundPlayer, transform) as GameObject;
+        soundPlayer.transform.SetParent(contentVolumes.transform);
+        soundPlayer.GetComponent<RectTransform>().localScale = Vector3.one;
+        soundPlayer.transform.position = new Vector3(soundPlayer.transform.position.x, soundPlayer.transform.position.y, 0);
+        soundPlayer.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nmMusica;
         
-        int musicID = ANAMusic.load(caminhoMusica, false, true, Loaded, true);
-        sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
-        sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-        sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-        sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
+        int musicID = ANAMusic.load(caminhoMusica, false, true, musicasManager.Loaded, true);
+        soundPlayer.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminhoMusica;
+        soundPlayer.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => musicasManager.Play(musicID, soundPlayer.transform.Find("btnPlay").GetComponent<Button>()));
+        soundPlayer.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => musicasManager.Stop(musicID, soundPlayer.transform.Find("btnPlay").GetComponent<Button>()));
+        soundPlayer.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => musicasManager.Loop(musicID, soundPlayer.transform.Find("btnLoop").GetComponent<Button>()));
+        soundPlayer.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => musicasManager.Deletar(musicID, soundPlayer));
+        soundPlayer.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ musicasManager.VolumeChange(musicID, soundPlayer.transform.Find("sldVolume").GetComponent<Slider>().value); });
         
         if(isLooping){
             // Seto o loop para true
-            Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>());
+            musicasManager.Loop(musicID, soundPlayer.transform.Find("btnLoop").GetComponent<Button>());
         }
 
-        sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePause;
+        soundPlayer.transform.Find("btnPlay").GetComponent<Image>().sprite = musicasManager.imagePause;
 
         // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-        botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
+        musicasManager.listaBotoesPlay.Add(new BotoesPlay(musicID, soundPlayer.transform.Find("btnPlay").GetComponent<Button>()));
     }
 
-    void Play(int musicID, Button btnPlay){
-		if (ANAMusic.isPlaying(musicID))
-		{
-            btnPlay.GetComponent<Image>().sprite = imagePlay;
-            ANAMusic.pause(musicID);
-		}
-		else
-		{
-			btnPlay.GetComponent<Image>().sprite = imagePause;
-            ANAMusic.play(musicID, MusicaConcluida);
-		}
-    }
-
-    void Stop(int musicID, Button btnPlay)
-	{
-        btnPlay.GetComponent<Image>().sprite = imagePlay;
-		ANAMusic.pause(musicID);
-		ANAMusic.seekTo(musicID, 0);
-	}
-
-    void Loop(int musicID, Button btnLoop)
-	{   
-		if (ANAMusic.isLooping(musicID))
-		{
-            btnLoop.GetComponent<Image>().sprite = imageLoop;
-			ANAMusic.setLooping(musicID, false);
-		}
-		else
-		{
-            btnLoop.GetComponent<Image>().sprite = imageLoopPressionado;
-			ANAMusic.setLooping(musicID, true);
-		}
-	}
-
-    public void Deletar(int musicID, GameObject volume)
+    public void SelecionarMusicaFavoritos(List<string> caminhoMusica, string nomeFavorito, int idFavorito)
     {
-        ANAMusic.pause(musicID);
-        ANAMusic.seekTo(musicID, 0);
-        ANAMusic.release(musicID);
-        Destroy(volume);
-    }
 
-    public void VolumeChange(int musicID, float sliderVolume)
-    {
-        ANAMusic.setVolume(musicID, sliderVolume);
-    }
-
-    void Loaded(int musicID)
-	{
-        ANAMusic.play(musicID, MusicaConcluida);
-    }
-
-    void MusicaConcluida(int musicID){
-        foreach (BotoesPlay b in botoesPlay)
+        foreach (string caminho in caminhoMusica)
         {
-            if(b.idMusica == musicID){
-                b.btnPlay.GetComponent<Image>().sprite = imagePlay;
-            }
+            GameObject sldMusica; // Create GameObject instance
+        
+            sldMusica = Instantiate(prefabSoundPlayer, transform) as GameObject;
+            sldMusica.transform.SetParent(contentVolumes.transform);
+            sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
+            sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
+
+            string nomeMusicaComExtensao = caminho.Substring(caminho.IndexOf("/") + 1);
+            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
+
+            sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nomeMusica;
+            
+            int musicID = ANAMusic.load(caminho, false, true, null, true);
+            sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminho;
+            sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => musicasManager.Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
+            sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => musicasManager.Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
+            sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => musicasManager.Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
+            sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => musicasManager.Deletar(musicID, sldMusica));
+            sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ musicasManager.VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
+            
+            sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = musicasManager.imagePlay;
+            
+            // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
+            musicasManager.listaBotoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
         }
+
+        favoritosManager.idFavoritoSelecionado = idFavorito;
+        favoritosManager.nomeFavoritoSelecionado = nomeFavorito;   
     }
 
     #endregion
@@ -293,11 +239,7 @@ public class AppManager : MonoBehaviour {
         HabilitarFavoritos(false);
     }
 
-    #endregion
-
-    #region "Favoritos"
-
-    public void PopularGridBotoesFavoritos()
+    public void PopularBotoesCategoriaFavoritos()
     {
         // Destruo todos os botões e populo o scroll view com os botões da categoria selecionada
         GameObject[] botoes = GameObject.FindGameObjectsWithTag("btnSom");
@@ -311,7 +253,7 @@ public class AppManager : MonoBehaviour {
 
         if (File.Exists(path)){
 
-            List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();
+            List<FavoritosData> favoritosArquivo = favoritosManager.RecuperarDadosArquivo();
 
             foreach (FavoritosData favorito in favoritosArquivo)
             {
@@ -320,7 +262,7 @@ public class AppManager : MonoBehaviour {
                 btnMusica.GetComponent<RectTransform>().localScale = Vector3.one;
                 
                 btnMusica.GetComponentInChildren<TextMeshProUGUI>().text = favorito.nomeFavorito;
-                btnMusica.GetComponent<Button>().onClick.AddListener(() => AdicionarMusicaFavoritos(favorito.sonsFavoritos, favorito.nomeFavorito, favorito.idFavorito));
+                btnMusica.GetComponent<Button>().onClick.AddListener(() => SelecionarMusicaFavoritos(favorito.sonsFavoritos, favorito.nomeFavorito, favorito.idFavorito));
             }
 
         } else {
@@ -330,169 +272,9 @@ public class AppManager : MonoBehaviour {
         HabilitarFavoritos(true);
     }
 
-    public void AdicionarMusicaFavoritos(List<string> caminhoMusica, string nomeFavorito, int idFavorito)
-    {
+    #endregion
 
-        foreach (string caminho in caminhoMusica)
-        {
-            GameObject sldMusica; // Create GameObject instance
-        
-            sldMusica = Instantiate(controleVolume, transform) as GameObject;
-            sldMusica.transform.SetParent(contentVolumes.transform);
-            sldMusica.GetComponent<RectTransform>().localScale = Vector3.one;
-            sldMusica.transform.position = new Vector3(sldMusica.transform.position.x, sldMusica.transform.position.y, 0);
-
-            string nomeMusicaComExtensao = caminho.Substring(caminho.IndexOf("/") + 1);
-            string nomeMusica = nomeMusicaComExtensao.Substring(0, nomeMusicaComExtensao.IndexOf("."));
-
-            sldMusica.transform.Find("imgBaseVolume").Find("txtImg").GetComponent<TextMeshProUGUI>().text = nomeMusica;
-            
-            int musicID = ANAMusic.load(caminho, false, true, null, true);
-            sldMusica.transform.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text = caminho;
-            sldMusica.transform.Find("btnPlay").GetComponent<Button>().onClick.AddListener(() => Play(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-            sldMusica.transform.Find("btnStop").GetComponent<Button>().onClick.AddListener(() => Stop(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-            sldMusica.transform.Find("btnLoop").GetComponent<Button>().onClick.AddListener(() => Loop(musicID, sldMusica.transform.Find("btnLoop").GetComponent<Button>()));
-            sldMusica.transform.Find("btnDeletar").GetComponent<Button>().onClick.AddListener(() => Deletar(musicID, sldMusica));
-            sldMusica.transform.Find("sldVolume").GetComponent<Slider>().onValueChanged.AddListener(delegate{ VolumeChange(musicID, sldMusica.transform.Find("sldVolume").GetComponent<Slider>().value); });
-            
-            sldMusica.transform.Find("btnPlay").GetComponent<Image>().sprite = imagePlay;
-            
-            // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
-            botoesPlay.Add(new BotoesPlay(musicID, sldMusica.transform.Find("btnPlay").GetComponent<Button>()));
-        }
-
-        idFavoritoSelecionado = idFavorito;
-        nomeFavoritoSelecionado = nomeFavorito;   
-    }
-
-    void ValidaFavoritos(){
-        if(ListaCaminhos().Count > 0){
-            MostrarTela(popupFavoritos);
-        } else{
-            MostrarErro(popUpErro, "Aventureiro(a), escolha pelo menos uma música para criar a lista de favoritos!");
-        }
-    }
-    
-    public void SalvarFavoritos(){
-        if(txtNmFavorito.text == ""){
-            MostrarErro(popUpErro, "Aventureiro(a), você precisa digitar um nome para lista de favoritos!");
-        } else {
-            SalvarDadosArquivo(txtNmFavorito.text, ListaCaminhos());
-            EsconderTela(popupFavoritos);
-        }
-    }
-    
-    List<FavoritosData> RecuperarDadosArquivo(){
-        string path = Application.persistentDataPath +  "/favoritos.epic";
-
-        if (File.Exists(path)){
-            BinaryFormatter formatter = new BinaryFormatter();
-            FileStream stream = new FileStream(path, FileMode.Open);
-            Data data = formatter.Deserialize(stream) as Data;
-            stream.Close();
-
-            return data.fav;
-        } else {
-            return null;
-        }
-    }
-
-    void SalvarDadosArquivo(string nomeFavorito, List<string> caminhos){
-
-        if (caminhos.Count > 0){
-            
-            BinaryFormatter formatter = new BinaryFormatter();
-            string path = Application.persistentDataPath +  "/favoritos.epic";
-            
-
-            List<FavoritosData> favoritos = new List<FavoritosData>();
-            int idFavorito = 1;
-
-            if (File.Exists(path)){
-                List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();   
-
-                foreach (FavoritosData favorito in favoritosArquivo)
-                {
-                    favoritos.Add(favorito);
-                    idFavorito = favorito.idFavorito + 1;
-                } 
-            }
-
-            FileStream stream = new FileStream(path, FileMode.Create);
-            FavoritosData favoritosData = new FavoritosData(idFavorito ,nomeFavorito, caminhos);
-            favoritos.Add(favoritosData);
-
-            Data data = new Data(favoritos);
-            formatter.Serialize(stream, data);
-            stream.Close();
-            //TODO criar botao
-            PopularGridBotoesFavoritos();
-        }else {
-            MostrarErro(popUpErro, "Aventureiro(a), escolha pelo menos uma música para criar a lista de favoritos!");
-        }
-    }
-    
-    void ValidaDeletar(){
-        
-        string path = Application.persistentDataPath +  "/favoritos.epic";
-
-        if (File.Exists(path))
-        {
-            List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();
-
-            if (favoritosArquivo.Count > 0)
-            {
-                if (idFavoritoSelecionado != 0)
-                {
-                    txtMensagemDeletar.text = "Aventureiro(a), você tem certeza que quer banir a playlist '" + nomeFavoritoSelecionado + "' desse plano de existencia?";
-                    MostrarTela(popupFavoritosDeletar);
-                } else{
-                    MostrarErro(popUpErro, "Aventureiro(a), selecione uma lista para deletar!");    
-                }
-            } else {
-                MostrarErro(popUpErro, "Aventureiro(a), antes de deletar, crie uma lista de favoritos!");
-            }
-            
-        } else {
-            MostrarErro(popUpErro, "Aventureiro(a), antes de deletar, crie uma lista de favoritos!");
-        }
-    }
-
-    public void DeletarFavoritos(){
-
-        BinaryFormatter formatter = new BinaryFormatter();
-        string path = Application.persistentDataPath +  "/favoritos.epic";
-
-        List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();
-        
-        for (int i = 0; i < favoritosArquivo.Count; i++)
-        {
-            if(favoritosArquivo[i].idFavorito == idFavoritoSelecionado){
-                favoritosArquivo.RemoveAt(i);
-                FileStream stream = new FileStream(path, FileMode.Create);
-                Data data = new Data(favoritosArquivo);
-                formatter.Serialize(stream, data);
-                stream.Close();
-            }
-        }
-
-        idFavoritoSelecionado = 0;
-        EsconderTela(popupFavoritosDeletar);
-        //TODO remover botao
-        PopularGridBotoesFavoritos();
-    }
-
-    // Retorna a lista com os caminhos das músicas no grid de Volumes
-    List<string> ListaCaminhos(){
-        List<string> caminhos = new List<string>();
-
-        foreach (Transform child in contentVolumes.transform)
-        {
-            caminhos.Add(child.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text);
-        }
-
-        return caminhos;
-    }
+    #region "Favoritos"
 
     void HabilitarFavoritos(Boolean habilitar){
         if(habilitar){
@@ -506,59 +288,64 @@ public class AppManager : MonoBehaviour {
         }
     }
 
-    #endregion
+    // Retorna a lista com os caminhos das músicas no grid de Volumes
+    public List<string> ListaCaminhos(){
+        List<string> caminhos = new List<string>();
 
-    #region "Mostrar/Esconder Tela"
-
-    void MostrarTela(CanvasGroup canvas){
-
-        // Desativo o raycast para previnir que o usuário clique na tela anterior enquanto a animação de mostrar a tela ainda está sendo executada
-        canvas.blocksRaycasts = true;
-        LeanTween.alphaCanvas(canvas, 1, 0.3f).setOnComplete(() =>
+        foreach (Transform child in contentVolumes.transform)
         {
-            // Ativo a interação com a tela depois que a animação terminar
-            canvas.interactable = true;        
-        });
-    }
+            caminhos.Add(child.Find("txtCaminho").GetComponent<TextMeshProUGUI>().text);
+        }
 
-    void EsconderTela(CanvasGroup canvas){
-        
-        // Desativo a interação com a tela para previnir que o usuário clique nela enquanto a animação de esconder a tela ainda está sendo executada
-        canvas.interactable = false;
-        LeanTween.alphaCanvas(canvas, 0, 0.3f).setOnComplete(() =>
-        {
-            // Desativo o raycast da tela depois que a animação terminar. Permitindo que os usuários interajam com a tela anterior
-            canvas.blocksRaycasts = false;
-        });
-
-        txtNmFavorito.text = "";
+        return caminhos;
     }
 
     #endregion
 
-    #region "PopUp Erro"
+    public void HabilitarTela(CanvasGroup canvas, Boolean isActive){
+        if(isActive){
+            // Desativo o raycast para previnir que o usuário clique na tela anterior enquanto a animação de mostrar a tela ainda está sendo executada
+            canvas.blocksRaycasts = true;
+            LeanTween.alphaCanvas(canvas, 1, 0.3f).setOnComplete(() =>
+            {
+                // Ativo a interação com a tela depois que a animação terminar
+                canvas.interactable = true;        
+            });
+        } else{
+            // Desativo a interação com a tela para previnir que o usuário clique nela enquanto a animação de esconder a tela ainda está sendo executada
+            canvas.interactable = false;
+            LeanTween.alphaCanvas(canvas, 0, 0.3f).setOnComplete(() =>
+            {
+                // Desativo o raycast da tela depois que a animação terminar. Permitindo que os usuários interajam com a tela anterior
+                canvas.blocksRaycasts = false;
+            });
 
-    void MostrarErro(CanvasGroup canvas, string erro)
-    {
-        txtMensagemErro.text = erro;
-
-        canvas.blocksRaycasts = true;
-        LeanTween.alphaCanvas(canvas, 1, 0.3f).setOnComplete(() =>
-        {            
-            canvas.interactable = true;    
-        });
+            favoritosManager.txtNmFavorito.text = "";
+        }
     }
 
-    void EsconderErro(CanvasGroup canvas){
+    public void HabilitarErro(CanvasGroup canvas, string erro, Boolean isActive){
 
-        canvas.interactable = false;
-        LeanTween.alphaCanvas(canvas, 0, 0.3f).setOnComplete(() =>
-        {            
-            canvas.blocksRaycasts = false;
-        });
+        if(isActive){
+
+            txtMensagemErro.text = erro;
+
+            canvas.blocksRaycasts = true;
+            LeanTween.alphaCanvas(canvas, 1, 0.3f).setOnComplete(() =>
+            {            
+                canvas.interactable = true;    
+            });
+
+        } else{
+
+            canvas.interactable = false;
+            LeanTween.alphaCanvas(canvas, 0, 0.3f).setOnComplete(() =>
+            {            
+                canvas.blocksRaycasts = false;
+            });
+
+        }
     }
-
-    #endregion
 
     #region "PopUp Apoiar"
 
@@ -580,10 +367,6 @@ public class AppManager : MonoBehaviour {
 
     #endregion
 
-    public void LoadPopUpInfo()
-    {
-        MostrarTela(popUpConfig);
-    }
 }
 
 public class BotoesPlay {
