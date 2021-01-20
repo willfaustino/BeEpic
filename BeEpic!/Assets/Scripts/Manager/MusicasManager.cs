@@ -11,6 +11,8 @@ public class MusicasManager : MonoBehaviour
     // Uso o botoesPlay para fazer o callback do botão Play/Pause alterar a imagem caso a música termine
     public List<BotoesPlay> listaBotoesPlay = new List<BotoesPlay>();
     
+    // Toca a música
+    // O ANAMusic é o plugin que eu uso para fazer o sons tocar em background e com a tela bloqueada
     public void Play(int musicID, Button btnPlay){
 		if (ANAMusic.isPlaying(musicID))
 		{
@@ -24,6 +26,7 @@ public class MusicasManager : MonoBehaviour
 		}
     }
 
+    // Para a música e faz ela voltar para o início
     public void Stop(int musicID, Button btnPlay)
 	{
         btnPlay.GetComponent<Image>().sprite = imagePlay;
@@ -31,6 +34,7 @@ public class MusicasManager : MonoBehaviour
 		ANAMusic.seekTo(musicID, 0);
 	}
 
+    // Seta a música para fazer o loop
     public void Loop(int musicID, Button btnLoop)
 	{   
 		if (ANAMusic.isLooping(musicID))
@@ -45,6 +49,7 @@ public class MusicasManager : MonoBehaviour
 		}
 	}
 
+    // Deleta a música da lista
     public void Deletar(int musicID, GameObject volume)
     {
         ANAMusic.pause(musicID);
@@ -53,6 +58,7 @@ public class MusicasManager : MonoBehaviour
         Destroy(volume);
     }
 
+    // Altera o volume
     public void VolumeChange(int musicID, float sliderVolume)
     {
         ANAMusic.setVolume(musicID, sliderVolume);
@@ -63,6 +69,7 @@ public class MusicasManager : MonoBehaviour
         ANAMusic.play(musicID, MusicaConcluida);
     }
 
+    // Quando a música terminar, volta o botão de pause para play
     public void MusicaConcluida(int musicID){
         foreach (BotoesPlay b in listaBotoesPlay)
         {

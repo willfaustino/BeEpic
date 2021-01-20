@@ -23,7 +23,6 @@ public class FavoritosManager : MonoBehaviour
     [HideInInspector]
     public string nomeFavoritoSelecionado;
 
-    // Start is called before the first frame update
     void Start()
     {
         btnFavoritosSalvar.onClick.AddListener(ValidaFavoritos);
@@ -34,6 +33,7 @@ public class FavoritosManager : MonoBehaviour
         btnPopupFavoritosDeletarCancelar.onClick.AddListener(() => AppManager.Instance.HabilitarTela(popupFavoritosDeletar, false));
     }
 
+    // Verifico se existe alguma música selecionada para criar o favorito
     void ValidaFavoritos(){
         if(AppManager.Instance.ListaCaminhos().Count > 0){
             AppManager.Instance.HabilitarTela(popupFavoritos, true);
@@ -42,6 +42,7 @@ public class FavoritosManager : MonoBehaviour
         }
     }
     
+    // Verifico se o usuário digitou um nome para a lista de favoritos e se estiver tudo certo, ele salva a lista
     public void SalvarFavoritos(){
         if(txtNmFavorito.text == ""){
             AppManager.Instance.HabilitarErro(AppManager.Instance.popUpErro, "Aventureiro(a), você precisa digitar um nome para lista de favoritos!", true);
@@ -51,9 +52,12 @@ public class FavoritosManager : MonoBehaviour
         }
     }
     
+    // recupera a lista de favoritos do arquivo json favoritos.epic
     public List<FavoritosData> RecuperarDadosArquivo(){
+        // caminho da localização do arquivo dentro do celular
         string path = Application.persistentDataPath +  "/favoritos.epic";
 
+        // se o arquivo exister, recupera os favoritos
         if (File.Exists(path)){
             BinaryFormatter formatter = new BinaryFormatter();
             FileStream stream = new FileStream(path, FileMode.Open);
@@ -66,8 +70,10 @@ public class FavoritosManager : MonoBehaviour
         }
     }
 
+    // Salva os favoritos em um json
     void SalvarDadosArquivo(string nomeFavorito, List<string> caminhos){
 
+        // Se tiver alguma música selecionada, crio o json favoritos.epic
         if (caminhos.Count > 0){
             
             BinaryFormatter formatter = new BinaryFormatter();
@@ -77,6 +83,7 @@ public class FavoritosManager : MonoBehaviour
             List<FavoritosData> favoritos = new List<FavoritosData>();
             int idFavorito = 1;
 
+            // Se o arquivo favoritos.epic já existe, então eu recupero o conteúdo dele e adiciono a nova lista
             if (File.Exists(path)){
                 List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();   
 
@@ -94,23 +101,27 @@ public class FavoritosManager : MonoBehaviour
             Data data = new Data(favoritos);
             formatter.Serialize(stream, data);
             stream.Close();
-            //TODO criar botao
+            
+            // Dou um refresh na lista de favoritos
             AppManager.Instance.PopularBotoesCategoriaFavoritos();
         }else {
             AppManager.Instance.HabilitarErro(AppManager.Instance.popUpErro, "Aventureiro(a), escolha pelo menos uma música para criar a lista de favoritos!", true);
         }
     }
     
+    // valido se o usuário quer deletar um favorito
     void ValidaDeletar(){
         
         string path = Application.persistentDataPath +  "/favoritos.epic";
 
+        // Verifico primeiro se o arquivo existe
         if (File.Exists(path))
         {
             List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();
 
             if (favoritosArquivo.Count > 0)
             {
+                // Verifico se tem alguma lista de favoritos selecionada
                 if (idFavoritoSelecionado != 0)
                 {
                     txtMensagemDeletar.text = "Aventureiro(a), você tem certeza que quer banir a playlist '" + nomeFavoritoSelecionado + "' desse plano de existencia?";
@@ -127,13 +138,16 @@ public class FavoritosManager : MonoBehaviour
         }
     }
 
+    // Deleto o favorito selecionado
     public void DeletarFavoritos(){
-
+        
+        // Recupero a lista de favoritos salva
         BinaryFormatter formatter = new BinaryFormatter();
         string path = Application.persistentDataPath +  "/favoritos.epic";
 
         List<FavoritosData> favoritosArquivo = RecuperarDadosArquivo();
         
+        // se o id do favorito selecionado for igual ao id da lista, eu deleto ele
         for (int i = 0; i < favoritosArquivo.Count; i++)
         {
             if(favoritosArquivo[i].idFavorito == idFavoritoSelecionado){
@@ -145,9 +159,10 @@ public class FavoritosManager : MonoBehaviour
             }
         }
 
+        // seto o id para 0 porque depois de deletar, nao tem mais nenhuma lista de favoritos selecionada
         idFavoritoSelecionado = 0;
+        // Volto para tela principal e dou refresh na lista de favoritos
         AppManager.Instance.HabilitarTela(popupFavoritosDeletar, false);
-        //TODO remover botao
         AppManager.Instance.PopularBotoesCategoriaFavoritos();
     }
 

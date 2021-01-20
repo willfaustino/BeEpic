@@ -33,12 +33,18 @@ public class ConfigManager : MonoBehaviour {
     
     void Start()
     {
-        btnVoltarConfig.onClick.AddListener(VoltarConfig);
+        // Adiciono as funções do click dos botões da UI
+        // Canvas Config
+        btnVoltarConfig.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasConfig, false));
         btnPoliticaPrivacidade.onClick.AddListener(AbrirPolitica);
         btnInstagram.onClick.AddListener(AbrirInstagram);
-        btnTutorial.onClick.AddListener(AbrirTutorial);
-        btnVoltarTutorial.onClick.AddListener(VoltarTutorial);
+        btnTutorial.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasTutorial, true));
         btnApoiadores.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasApoiadores, true));
+
+        // Canvas Tutorial
+        btnVoltarTutorial.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasTutorial, false));
+        
+        // Canvas Apoiadores
         btnVoltarApoiadores.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasApoiadores, false));
         btnEsqueleto.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasEsqueleto, true));
         btnVoltarEsqueleto.onClick.AddListener(() => AppManager.Instance.HabilitarTela(canvasEsqueleto, false));
@@ -51,24 +57,14 @@ public class ConfigManager : MonoBehaviour {
         
     }
 
-    public void VoltarConfig() {
-        AppManager.Instance.HabilitarTela(canvasConfig, false);
-    }
-
+    // Abro a política de privacidade
     public void AbrirPolitica() {
         Application.OpenURL("https://sites.google.com/view/beepic/privacy-policy");
     }
 
+    // Redireciono para o perfil do instagram
     public void AbrirInstagram() {
         Application.OpenURL("instagram://user?username=will_beepic");
-    }
-
-    public void AbrirTutorial() {
-        AppManager.Instance.HabilitarTela(canvasTutorial, true);
-    }
-
-    public void VoltarTutorial() {
-        AppManager.Instance.HabilitarTela(canvasTutorial, true);
     }
 
 }
